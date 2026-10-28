@@ -39,6 +39,8 @@ begin
           '', '', '', '', '', '', '', '');
   if p_username is not null then
     perform set_config('request.jwt.claims', jsonb_build_object('sub', v_id, 'role', 'authenticated')::text, true);
+    -- News is by invitation (20261028130000_news_invites.sql): let the address in.
+    insert into news_private.allowed_emails (email) values (lower(p_email)) on conflict do nothing;
     perform news.claim_profile(p_username);
     perform set_config('request.jwt.claims', '', true);
   end if;

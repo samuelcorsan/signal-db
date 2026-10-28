@@ -6,6 +6,10 @@
 --   bob@news.test     / news-bob-pw
 --   grace@example.com / news-grace-pw   Signal's Grace: gets the launchpad badge
 --
+-- News is by invitation: admin and alice are on the admins' list of allowed
+-- emails, grace is let in by her badge, and bob joins with a code from alice.
+-- Anyone else who logs in locally needs a code from one of them (/invites).
+--
 -- ada@example.com (Signal's Ada, an accepted fellow) has no account yet: log
 -- in as her with "email me a login link" and read the link in Mailpit
 -- (http://127.0.0.1:54324) to see a reserved account being claimed.
@@ -43,7 +47,13 @@ declare
   bob   uuid := '20000000-0000-4000-a000-000000000003';
   grace uuid := '20000000-0000-4000-a000-000000000004';
   rls   bigint;
+  code  text;
 begin
+  insert into news_private.allowed_emails (email, note) values
+    ('admin@news.test', 'Demo admin'), ('alice@news.test', 'Demo member');
+  -- Signal's seed is in: recognise its accepted members now, not in a minute.
+  perform news_private.sync_signal_members();
+
   perform set_config('request.jwt.claims', jsonb_build_object('sub', admin, 'role', 'authenticated')::text, true);
   perform news.claim_profile('admin');
   perform news.submit_story('', 'Welcome to Exponential News',
@@ -51,6 +61,7 @@ begin
 
   perform set_config('request.jwt.claims', jsonb_build_object('sub', alice, 'role', 'authenticated')::text, true);
   perform news.claim_profile('alice');
+  code := news.make_invite();
   rls := news.submit_story('https://www.postgresql.org/docs/current/ddl-rowsecurity.html',
                            'Row Security Policies', '');
   perform news.submit_story('https://supabase.com/docs/guides/database/postgres/row-level-security',
@@ -61,7 +72,7 @@ begin
   perform news.submit_story('', 'Ask EN: What are you building this week?', 'Launchpad cohort here. Share yours.');
 
   perform set_config('request.jwt.claims', jsonb_build_object('sub', bob, 'role', 'authenticated')::text, true);
-  perform news.claim_profile('bob');
+  perform news.claim_profile('bob', code);
   perform news.post_comment(rls, 'Policies are ORed together unless they are restrictive.');
   perform news.vote_item(rls, 1);
   perform news.vote_item((select id from news.items where title = 'Welcome to Exponential News'), 1);

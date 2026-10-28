@@ -44,6 +44,8 @@ begin
           '', '', '', '', '', '', '', '');
   if p_username is not null then
     perform set_config('request.jwt.claims', jsonb_build_object('sub', v_id, 'role', 'authenticated')::text, true);
+    -- News is by invitation (20261028130000_news_invites.sql): let the address in.
+    insert into news_private.allowed_emails (email) values (lower(p_email)) on conflict do nothing;
     perform news.claim_profile(p_username);
     perform set_config('request.jwt.claims', '', true);
   end if;
@@ -277,6 +279,7 @@ select is((select ignored from news.profile_private()), false, 'profile_private 
 
 select tests.as_postgres();
 create temp table newbie as select tests.new_user('newbie@news.test') as id;
+insert into news_private.allowed_emails (email) values ('newbie@news.test');
 grant select on newbie to authenticated;
 select tests.as_user((select id from newbie));
 select throws_ok($$select news.claim_profile('x')$$, '22023', 'name', 'usernames need two characters');

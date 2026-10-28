@@ -46,6 +46,8 @@ union all select 'reader', tests.new_user('t_reader@news.test')
 union all select 'handmade', tests.new_user('t_handmade@news.test');
 grant select on u to anon, authenticated;
 insert into public.staff (user_id, email) select id, 't_staffer@exponential.test' from u where name = 'staffer';
+-- Staff need no invitation; everyone else here is let in by address.
+insert into news_private.allowed_emails (email) values ('t_reader@news.test'), ('t_handmade@news.test');
 create function tests.uid(p_name text) returns uuid language sql stable as $$
   select id from u where name = p_name
 $$;

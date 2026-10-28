@@ -47,6 +47,8 @@ begin
           '', '', '', '', '', '', '', '');
   if p_username is not null then
     perform set_config('request.jwt.claims', jsonb_build_object('sub', v_id, 'role', 'authenticated')::text, true);
+    -- News is by invitation (20261028130000_news_invites.sql): let the address in.
+    insert into news_private.allowed_emails (email) values (lower(p_email)) on conflict do nothing;
     perform news.claim_profile(p_username);
     perform set_config('request.jwt.claims', '', true);
   end if;
@@ -116,7 +118,8 @@ select is_empty($$
     and has_function_privilege('anon', p.oid, 'EXECUTE')
     and p.oid::regprocedure::text not in ('news.is_admin()', 'news.leaders(integer)',
       'news.username_available(text)', 'news.profile_private(uuid)', 'news.points_curve(bigint)',
-      'news.sees_gated()', 'news.gated_item(bigint)', 'news.username_now(text)')
+      'news.sees_gated()', 'news.gated_item(bigint)', 'news.username_now(text)',
+      'news.invite_from(text)', 'news.invite_leaders(integer)')
 $$, 'anon can call no SECURITY DEFINER function in an exposed schema (but News'' own read helpers)');
 
 select ok(not has_schema_privilege('anon', 'community_private', 'USAGE')

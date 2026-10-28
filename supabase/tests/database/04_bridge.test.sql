@@ -44,6 +44,8 @@ begin
           '', '', '', '', '', '', '', '');
   if p_username is not null then
     perform set_config('request.jwt.claims', jsonb_build_object('sub', v_id, 'role', 'authenticated')::text, true);
+    -- News is by invitation (20261028130000_news_invites.sql): let the address in.
+    insert into news_private.allowed_emails (email) values (lower(p_email)) on conflict do nothing;
     perform news.claim_profile(p_username);
     perform set_config('request.jwt.claims', '', true);
   end if;
@@ -132,9 +134,12 @@ select tests.as_postgres();
 -- An unconfirmed email gets nothing.
 create temp table kath as select tests.new_user('KATHERINE@example.com', p_confirmed => false) as id;
 grant select on kath to authenticated;
+-- Nor is she let in by it: she joins with an invitation.
+insert into news_private.invites (code, inviter)
+select 'KATHKATH', id from news.profiles where username = 't_ada';
 select tests.as_user((select id from kath));
 select is(news.badge_preview(), null, 'no badge preview for an unconfirmed email');
-select news.claim_profile('t_kath');
+select news.claim_profile('t_kath', 'kath-kath');
 select tests.as_postgres();
 select news_private.apply_badges();
 select is((select badge from news.profiles where username = 't_kath'), null,
